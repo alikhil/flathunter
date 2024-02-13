@@ -6,7 +6,12 @@ ARG PIP_NO_CACHE_DIR=1
 
 # Install Chromium
 RUN apt-get -y update
-RUN apt-get install -y chromium
+# RUN apt-get install -y chromium-driver
+# https://stackoverflow.com/a/47204160
+
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN dpkg -i google-chrome-stable_current_amd64.deb --fix-missing; apt-get -fy install
+
 
 # Upgrade pip, install pipenv
 RUN pip install --upgrade pip
