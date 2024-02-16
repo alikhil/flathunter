@@ -1,12 +1,39 @@
 version: '3'
 
+networks:
+  flathunt:
+    ipam:
+      config:
+        - subnet: 10.10.1.0/24
+
 services:
+
+  socks_proxy:
+    image: dockage/tor-privoxy
+    ports:
+    - 9050:9050
+    - 9051:9051
+    - 8118:8118
+
+    networks:
+      flathunt:
+        ipv4_address: 10.10.1.10
+
+  proxy:
+    build: ./socks-to-http-proxy
+    command: -p 9999 -s  10.10.1.10:9050
+    ports:
+    - 9999:9999
+    networks:
+      flathunt: {}
   app:
     build: .
     shm_size: 512M # Workaround to fix docker crashes because of to small /dev/shm
     platform: linux/amd64 # For M1 to install google-chrome-stable; However still crashes on M1 when launching chrome (selenium.common.exceptions.WebDriverException: Message: unknown error: unable to discover open window in chrome (Session info: headless chrome=109.0.5414.119))
     command: python flathunt.py
     restart: always
+    networks:
+      flathunt: {}
     environment:
       # - FLATHUNTER_TARGET_URLS=https://www.immobilienscout24.de/Suche/...;https://www.wg-gesucht.de/...
       # - FLATHUNTER_DATABASE_LOCATION=

@@ -7,7 +7,7 @@ from flathunter.abstract_crawler import Crawler
 class Idealista(Crawler):
     """Implementation of Crawler interface for Idealista"""
 
-    URL_PATTERN = re.compile(r'https://www\.idealista\.it')
+    URL_PATTERN = re.compile(r'https://www\.idealista\.com')
 
     def __init__(self, config):
         super().__init__(config)
@@ -28,7 +28,7 @@ class Idealista(Crawler):
 
         findings = soup.find_all('article', {"class": "item"})
 
-        base_url = 'https://www.idealista.it'
+        base_url = 'https://www.idealista.com'
         for row in findings:
             title_row = row.find('a', {"class": "item-link"})
             title = title_row.text.strip()

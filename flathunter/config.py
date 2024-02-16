@@ -313,6 +313,10 @@ Preis: {price}
         """Check if proxy is configured"""
         return "use_proxy_list" in self.config and self.config["use_proxy_list"]
 
+    def use_tor_proxy(self):
+        """Check if tor proxy is configured"""
+        return "use_tor_proxy" in self.config and self.config["use_tor_proxy"]
+
     def set_keys(self, dict_keys: Dict[str, Any]):
         """Update the config keys based on the content of the dictionary passed"""
         self.config.update(dict_keys)

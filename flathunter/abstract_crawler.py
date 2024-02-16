@@ -66,12 +66,21 @@ class Crawler(ABC):
 
         if self.config.use_proxy():
             return self.get_soup_with_proxy(url)
+
+        if self.config.use_tor_proxy():
+            # todo: remove hardcoded tor proxy url
+            # todo: add changing tor proxy in case of problems
+            return self.get_soup_with_tor_proxy(url)
+
         if driver is not None:
             driver.get(url)
             if re.search("initGeetest", driver.page_source):
                 self.resolve_geetest(driver)
             elif re.search("g-recaptcha", driver.page_source):
                 self.resolve_recaptcha(
+                    driver, checkbox, afterlogin_string or "")
+            elif re.search("captcha-delivery", driver.page_source):
+                self.resolve_datadome(
                     driver, checkbox, afterlogin_string or "")
             return BeautifulSoup(driver.page_source, 'lxml')
 
@@ -101,6 +110,47 @@ class Crawler(ABC):
                         headers=self.HEADERS,
                         proxies={"http": proxy, "https": proxy},
                         timeout=(20, 0.1)
+                    )
+
+                    if resp.status_code != 200:
+                        logger.error("Got response (%i): %s",
+                                     resp.status_code, resp.content)
+                    else:
+                        resolved = True
+                        break
+
+                except requests.exceptions.ConnectionError:
+                    logger.error(
+                        "Connection failed for proxy %s. Trying new proxy...", proxy)
+                except requests.exceptions.Timeout:
+                    logger.error(
+                        "Connection timed out for proxy %s. Trying new proxy...", proxy
+                    )
+                except requests.exceptions.RequestException:
+                    logger.error("Some error occurred. Trying new proxy...")
+
+        if not resp:
+            raise ProxyException(
+                "An error occurred while fetching proxies or content")
+
+        return BeautifulSoup(resp.content, 'lxml')
+
+    def get_soup_with_tor_proxy(self, url) -> BeautifulSoup:
+        """Will try tor proxies until it's possible to crawl and return a soup"""
+        resolved = False
+        resp = None
+
+        # We will keep trying to fetch new proxies until one works
+        while not resolved:
+            proxies_list = ["http://proxy:9999"]
+            for proxy in proxies_list:
+                try:
+                    # Very low proxy read timeout, or it will get stuck on slow proxies
+                    resp = requests.get(
+                        url,
+                        headers=self.HEADERS,
+                        proxies={"http": proxy, "https": proxy},
+                        timeout=(20, 3)
                     )
 
                     if resp.status_code != 200:
@@ -198,6 +248,41 @@ class Crawler(ABC):
                           max_tries=3)
     def resolve_recaptcha(self, driver, checkbox: bool, afterlogin_string: str = ""):
         """Resolve Captcha"""
+        iframe_present = self._wait_for_iframe(driver)
+        if checkbox is False and afterlogin_string == "" and iframe_present:
+            google_site_key = driver \
+                .find_element_by_class_name("g-recaptcha") \
+                .get_attribute("data-sitekey")
+
+            try:
+                captcha_result = self.captcha_solver.solve_recaptcha(
+                    google_site_key,
+                    driver.current_url
+                ).result
+
+                driver.execute_script(
+                    f'document.getElementById("g-recaptcha-response").innerHTML="{captcha_result}";'
+                )
+
+                #  Below function call can be different depending on the websites
+                #  implementation. It is responsible for sending the promise that we
+                #  get from recaptcha_answer. For now, if it breaks, it is required to
+                #  reverse engineer it by hand. Not sure if there is a way to automate it.
+                driver.execute_script(f'solvedCaptcha("{captcha_result}")')
+                self._wait_until_iframe_disappears(driver)
+            except CaptchaUnsolvableError:
+                driver.refresh()
+                raise
+        else:
+            if checkbox:
+                self._clickcaptcha(driver, checkbox)
+            else:
+                self._wait_for_captcha_resolution(
+                    driver, checkbox, afterlogin_string)
+    def resolve_datadome(self, driver, checkbox: bool, afterlogin_string: str = ""):
+        """Resolve DataDome"""
+        # todo: implement datadome captcha resolution
+        # https://2captcha.com/blog/how-to-bypass-datadome-captcha?text=datadome
         iframe_present = self._wait_for_iframe(driver)
         if checkbox is False and afterlogin_string == "" and iframe_present:
             google_site_key = driver \
