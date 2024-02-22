@@ -29,6 +29,7 @@ class Crawler(ABC):
     URL_PATTERN: re.Pattern
 
     HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         'Connection': 'keep-alive',
         'Pragma': 'no-cache',
         'Cache-Control': 'no-cache',
@@ -64,13 +65,14 @@ class Crawler(ABC):
             afterlogin_string: Optional[str] = None) -> BeautifulSoup:
         """Creates a Soup object from the HTML at the provided URL"""
 
-        if self.config.use_proxy():
-            return self.get_soup_with_proxy(url)
+        # if self.config.use_proxy():
+        #     return self.get_soup_with_proxy(url)
 
-        if self.config.use_tor_proxy():
-            # todo: remove hardcoded tor proxy url
-            # todo: add changing tor proxy in case of problems
-            return self.get_soup_with_tor_proxy(url)
+        # if self.config.use_tor_proxy():
+        #     # todo: remove hardcoded tor proxy url
+        #     # todo: add changing tor proxy in case of problems
+        #     return self.get_soup_with_tor_proxy(url)
+        logger.info("Fetching URL: %s", url)
 
         if driver is not None:
             driver.get(url)
@@ -80,6 +82,7 @@ class Crawler(ABC):
                 self.resolve_recaptcha(
                     driver, checkbox, afterlogin_string or "")
             elif re.search("captcha-delivery", driver.page_source):
+                logger.info("Datadome captcha detected")
                 self.resolve_datadome(
                     driver, checkbox, afterlogin_string or "")
             return BeautifulSoup(driver.page_source, 'lxml')
@@ -89,7 +92,7 @@ class Crawler(ABC):
             user_agent = 'Unknown'
             if 'User-Agent' in self.HEADERS:
                 user_agent = self.HEADERS['User-Agent']
-            logger.error("Got response (%i): %s\n%s",
+            logger.error("Got response k (%i): %s\n%s",
                          resp.status_code, resp.content, user_agent)
 
         return BeautifulSoup(resp.content, 'lxml')

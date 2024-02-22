@@ -13,6 +13,19 @@ class GeetestResponse:
     sec_code: str
 
 @dataclass
+class DatadomeResponse:
+    """Response from DataDome Captcha"""
+    status: str
+    solution: dict
+    cost: str
+    ip: str
+    errorId: str
+    createTime: str
+    endTime: str
+    solveCount: str
+
+
+@dataclass
 class RecaptchaResponse:
     """Response from reCAPTCHA"""
     result: str
